@@ -288,6 +288,16 @@ wrap_render_process_handler! {
             let args = msg.argument_list();
 
             match name.as_str() {
+                "frameBypassFrame" => {
+                    crate::frame_bypass::receive(frame, args.as_ref());
+                    1
+                }
+                "mpvEnhancementResult" => {
+                    let Some(args) = args else { return 1 };
+                    let json = userfree_to_string(&args.string(0));
+                    call_js_global_string(frame, "_onMpvEnhancement", &[Arg::Str(&json)]);
+                    1
+                }
                 "savedServerUrl" => {
                     let Some(args) = args else { return 1 };
                     let url = userfree_to_string(&args.string(0));

@@ -228,7 +228,9 @@ pub fn wait_event_owned(timeout: f64) -> WaitEvent {
     if ev.is_null() {
         return WaitEvent::None;
     }
-    match unsafe { crate::Event::from_raw(ev) } {
+    let event = unsafe { crate::Event::from_raw(ev) };
+    crate::shaders::complete(&event);
+    match event {
         crate::Event::None => WaitEvent::None,
         crate::Event::LogMessage(m) => WaitEvent::LogMessage(m),
         event => WaitEvent::Event(event),

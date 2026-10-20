@@ -9,6 +9,9 @@ name = "jfn_mpv"
 crate-type = ["rlib"]
 path = "src/lib.rs"
 
+[features]
+frame-bypass = []
+
 [dependencies]
 crossbeam-channel.workspace = true
 parking_lot.workspace = true

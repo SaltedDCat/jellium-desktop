@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - codex/windows-x64-enhancement
     tags:
       - 'v*'
 
@@ -25,12 +26,6 @@ jobs:
             msystem: CLANG64
             pkg_prefix: mingw-w64-clang-x86_64
             triple: x86_64-pc-windows-msvc
-          - arch: arm64
-            runner: windows-11-arm
-            platform: windowsarm64
-            msystem: CLANGARM64
-            pkg_prefix: mingw-w64-clang-aarch64
-            triple: aarch64-pc-windows-msvc
     runs-on: ${{ matrix.runner }}
 
     steps:

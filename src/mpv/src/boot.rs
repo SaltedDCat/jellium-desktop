@@ -208,6 +208,15 @@ fn apply_boot_options(handle: &Handle, boot: &JfnMpvBoot) -> crate::error::Resul
     {
         set("audio-channels", &ch)?;
     }
+    #[cfg(feature = "frame-bypass")]
+    if std::env::var("JELLIUM_EXPERIMENTAL_FRAME_BYPASS").as_deref() == Ok("1") {
+        // The validation tap retains CPU images only. Avoid decoder buffers
+        // backed by VO GPU allocations, and use audio-master deadlines.
+        set("hwdec", "no")?;
+        set("vd-lavc-dr", "no")?;
+        set("video-sync", "audio")?;
+        set("interpolation", "no")?;
+    }
     Ok(())
 }
 

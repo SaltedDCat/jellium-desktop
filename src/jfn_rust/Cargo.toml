@@ -13,6 +13,7 @@ name = "jellium-desktop"
 path = "src/main.rs"
 
 [features]
+frame-bypass = ["jfn-cef/frame-bypass", "jfn-mpv/frame-bypass"]
 default = ["kde-palette"]
 kde-palette = ["jfn-wayland/kde-palette"]
 

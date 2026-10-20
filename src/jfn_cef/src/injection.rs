@@ -19,6 +19,7 @@ use std::sync::OnceLock;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum NativeFunction {
+    FrameBypassPull,
     PlayerLoad,
     PlayerStop,
     PlayerPause,
@@ -34,6 +35,7 @@ pub(crate) enum NativeFunction {
     PlayerSetAudioDelay,
     PlayerSetSubtitleDelay,
     PlayerSetAspectMode,
+    PlayerSetEnhancement,
     PlayerOsdActive,
     OpenConfigDir,
     SaveServerUrl,
@@ -67,6 +69,7 @@ pub(crate) enum NativeFunction {
 impl NativeFunction {
     fn from_name(name: &str) -> Option<Self> {
         Some(match name {
+            "frameBypassPull" => Self::FrameBypassPull,
             "playerLoad" => Self::PlayerLoad,
             "playerStop" => Self::PlayerStop,
             "playerPause" => Self::PlayerPause,
@@ -82,6 +85,7 @@ impl NativeFunction {
             "playerSetAudioDelay" => Self::PlayerSetAudioDelay,
             "playerSetSubtitleDelay" => Self::PlayerSetSubtitleDelay,
             "playerSetAspectMode" => Self::PlayerSetAspectMode,
+            "playerSetEnhancement" => Self::PlayerSetEnhancement,
             "playerOsdActive" => Self::PlayerOsdActive,
             "openConfigDir" => Self::OpenConfigDir,
             "saveServerUrl" => Self::SaveServerUrl,
@@ -116,6 +120,7 @@ impl NativeFunction {
 
     pub(crate) fn name(self) -> &'static str {
         match self {
+            Self::FrameBypassPull => "frameBypassPull",
             Self::PlayerLoad => "playerLoad",
             Self::PlayerStop => "playerStop",
             Self::PlayerPause => "playerPause",
@@ -131,6 +136,7 @@ impl NativeFunction {
             Self::PlayerSetAudioDelay => "playerSetAudioDelay",
             Self::PlayerSetSubtitleDelay => "playerSetSubtitleDelay",
             Self::PlayerSetAspectMode => "playerSetAspectMode",
+            Self::PlayerSetEnhancement => "playerSetEnhancement",
             Self::PlayerOsdActive => "playerOsdActive",
             Self::OpenConfigDir => "openConfigDir",
             Self::SaveServerUrl => "saveServerUrl",
@@ -165,7 +171,9 @@ impl NativeFunction {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum InjectedScript {
+    FrameBypass,
     NativeShim,
+    MpvEnhancement,
     MpvPlayerBase,
     MpvVideoPlayer,
     MpvAudioPlayer,
@@ -178,7 +186,9 @@ pub(crate) enum InjectedScript {
 impl InjectedScript {
     fn from_name(name: &str) -> Option<Self> {
         Some(match name {
+            "frame-bypass.js" => Self::FrameBypass,
             "native-shim.js" => Self::NativeShim,
+            "mpv-enhancement.js" => Self::MpvEnhancement,
             "mpv-player-base.js" => Self::MpvPlayerBase,
             "mpv-video-player.js" => Self::MpvVideoPlayer,
             "mpv-audio-player.js" => Self::MpvAudioPlayer,
@@ -192,7 +202,9 @@ impl InjectedScript {
 
     pub(crate) fn file_name(self) -> &'static str {
         match self {
+            Self::FrameBypass => "frame-bypass.js",
             Self::NativeShim => "native-shim.js",
+            Self::MpvEnhancement => "mpv-enhancement.js",
             Self::MpvPlayerBase => "mpv-player-base.js",
             Self::MpvVideoPlayer => "mpv-video-player.js",
             Self::MpvAudioPlayer => "mpv-audio-player.js",
@@ -226,6 +238,7 @@ const WEB_FUNCTIONS: &[NativeFunction] = &[
     NativeFunction::PlayerSetAudioDelay,
     NativeFunction::PlayerSetSubtitleDelay,
     NativeFunction::PlayerSetAspectMode,
+    NativeFunction::PlayerSetEnhancement,
     NativeFunction::PlayerOsdActive,
     NativeFunction::OpenConfigDir,
     NativeFunction::SaveServerUrl,
@@ -245,6 +258,7 @@ const WEB_FUNCTIONS: &[NativeFunction] = &[
 
 const WEB_SCRIPTS: &[InjectedScript] = &[
     InjectedScript::NativeShim,
+    InjectedScript::MpvEnhancement,
     InjectedScript::MpvPlayerBase,
     InjectedScript::MpvVideoPlayer,
     InjectedScript::MpvAudioPlayer,
@@ -473,6 +487,10 @@ pub(crate) fn build_for_kind(kind: &str, shared_textures_enabled: bool) -> Optio
         "web" => {
             let mut extra_info =
                 build_extra_info(WEB_FUNCTIONS, WEB_SCRIPTS, true, shared_textures_enabled);
+            if crate::frame_bypass::enabled() {
+                extra_info.functions.push(NativeFunction::FrameBypassPull);
+                extra_info.scripts.push(InjectedScript::FrameBypass);
+            }
             if let Some(json) = DEVICE_PROFILE_JSON.get()
                 && !json.is_empty()
             {

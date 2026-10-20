@@ -8,6 +8,9 @@ publish.workspace = true
 name = "jfn_cef"
 crate-type = ["rlib"]
 
+[features]
+frame-bypass = ["jfn-mpv/frame-bypass"]
+
 [dependencies]
 parking_lot.workspace = true
 cef = { workspace = true }
@@ -24,6 +27,7 @@ jfn-mpv = { path = "../mpv" }
 jfn-paths = { path = "../paths" }
 jfn-platform-abi = { path = "../platform_abi" }
 jfn-playback = { path = "../playback" }
+ring = "0.17"
 serde.workspace = true
 serde_json.workspace = true
 slotmap.workspace = true
@@ -32,6 +36,9 @@ slotmap.workspace = true
 [target.'cfg(target_os = "linux")'.dependencies]
 nix.workspace = true
 
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [build-dependencies]
 gix = { workspace = true }

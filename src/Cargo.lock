@@ -2343,9 +2343,11 @@ dependencies = [
  "jfn-playback",
  "nix",
  "parking_lot",
+ "ring",
  "serde",
  "serde_json",
  "slotmap",
+ "tempfile",
 ]
 
 [[package]]

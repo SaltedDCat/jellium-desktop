@@ -29,6 +29,9 @@ pub fn run(args: &BuildArgs) -> Result<()> {
         .arg("jellium-desktop")
         .arg("--manifest-path")
         .arg(&manifest);
+    if std::env::var("JELLIUM_EXPERIMENTAL_FRAME_BYPASS").as_deref() == Ok("1") {
+        cmd.args(["--features", "frame-bypass"]);
+    }
     if args.no_kde_palette {
         cmd.arg("--no-default-features");
     }

@@ -118,6 +118,7 @@ fn install_handlers(layer: *mut JfnCefLayer, inner_for_created: Arc<Inner>) {
     // BeforeClose: clear INSTANCE so any post-close jfn_web_exec_js becomes
     // a no-op instead of touching a torn-down layer.
     l.set_before_close_callback_rust(Some(Box::new(|| {
+        crate::enhancement::reset();
         *INSTANCE.lock() = None;
     })));
 
@@ -283,8 +284,14 @@ fn handle_message(message: BrowserMessage) -> bool {
     }
 
     match message.name() {
-        "playerLoad" => with_args(args, handle_player_load),
+        "frameBypassPull" => crate::frame_bypass::request(&message),
+        "playerSetEnhancement" => crate::enhancement::request(&message),
+        "playerLoad" => {
+            crate::enhancement::reset_for(&message, "load");
+            with_args(args, handle_player_load)
+        }
         "playerStop" => {
+            crate::enhancement::reset_for(&message, "stop");
             jfn_mpv_stop();
             true
         }

@@ -242,6 +242,50 @@ impl Handle {
         })
     }
 
+    /// Set an ordered string list as an mpv node array. This avoids parsing
+    /// path-list separators, including colons and semicolons in cache paths.
+    pub fn set_property_string_array_async(
+        &self,
+        reply: u64,
+        name: &str,
+        values: &[String],
+    ) -> Result<()> {
+        let invalid = || Error::new(sys::mpv_error::MPV_ERROR_INVALID_PARAMETER.0);
+        let name = CString::new(name).map_err(|_| invalid())?;
+        let strings = values
+            .iter()
+            .map(|value| CString::new(value.as_str()))
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(|_| invalid())?;
+        let mut nodes = strings
+            .iter()
+            .map(|value| {
+                let mut node: sys::mpv_node = unsafe { std::mem::zeroed() };
+                node.format = sys::mpv_format::MPV_FORMAT_STRING;
+                node.u.string = value.as_ptr().cast_mut();
+                node
+            })
+            .collect::<Vec<_>>();
+        let mut list = sys::mpv_node_list {
+            num: i32::try_from(nodes.len()).map_err(|_| invalid())?,
+            values: nodes.as_mut_ptr(),
+            keys: ptr::null_mut(),
+        };
+        let mut root: sys::mpv_node = unsafe { std::mem::zeroed() };
+        root.format = sys::mpv_format::MPV_FORMAT_NODE_ARRAY;
+        root.u.list = &mut list;
+        // libmpv copies all asynchronous input before returning.
+        check(unsafe {
+            sys::mpv_set_property_async(
+                self.raw,
+                reply,
+                name.as_ptr(),
+                sys::mpv_format::MPV_FORMAT_NODE,
+                (&mut root as *mut sys::mpv_node).cast(),
+            )
+        })
+    }
+
     // -----------------------------------------------------------------
     // Property observation
     // -----------------------------------------------------------------
@@ -281,7 +325,9 @@ impl Handle {
     /// pointer is consumed before this returns.
     pub fn wait_event(&self, timeout: f64) -> Event {
         let raw = unsafe { sys::mpv_wait_event(self.raw, timeout) };
-        unsafe { Event::from_raw(raw) }
+        let event = unsafe { Event::from_raw(raw) };
+        crate::shaders::complete(&event);
+        event
     }
 
     pub fn wakeup(&self) {
@@ -326,5 +372,46 @@ impl Drop for Handle {
             unsafe { sys::mpv_terminate_destroy(self.raw) };
             self.raw = ptr::null_mut();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn shader_node_array_preserves_path_separators_duplicates_and_clear() -> Result<()> {
+        let handle = Handle::create()?;
+        handle.set_option_string("vo", "null")?;
+        handle.initialize()?;
+        let paths = vec![
+            "/tmp/a:b;comma,shader.glsl".to_owned(),
+            "C:\\shader folder\\x.glsl".to_owned(),
+            "/tmp/a:b;comma,shader.glsl".to_owned(),
+        ];
+        for (reply, list) in [(101, paths), (102, Vec::new())] {
+            handle.set_property_string_array_async(reply, "glsl-shaders", &list)?;
+            let started = Instant::now();
+            loop {
+                match handle.wait_event(0.1) {
+                    Event::SetPropertyReply { reply: id, error } if id == reply => {
+                        check(error)?;
+                        break;
+                    }
+                    _ => {}
+                }
+                assert!(
+                    started.elapsed() < Duration::from_secs(5),
+                    "mpv async property timeout"
+                );
+            }
+            let actual = handle.get_property_node("glsl-shaders")?;
+            assert_eq!(
+                actual,
+                Node::Array(list.into_iter().map(Node::String).collect())
+            );
+        }
+        Ok(())
     }
 }
