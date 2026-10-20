@@ -82,6 +82,22 @@ jobs:
           set "PATH=%PATH%;%MSYS_BIN%"
           cargo xtask package --external-mpv "%CD%\third_party\mpv-install" --prefix build/install --dist dist
 
+      - name: Verify Windows x64 executable and enhancement bridge
+        shell: pwsh
+        run: |
+          $Exe = Join-Path $PWD "build/install/jellium-desktop.exe"
+          $Bytes = [IO.File]::ReadAllBytes($Exe)
+          $PeOffset = [BitConverter]::ToInt32($Bytes, 0x3c)
+          $Machine = [BitConverter]::ToUInt16($Bytes, $PeOffset + 4)
+          if ($Machine -ne 0x8664) { throw "Expected Windows x64 PE executable" }
+          $Text = [Text.Encoding]::UTF8.GetString($Bytes)
+          foreach ($Marker in @("JelliumMpvEnhancement", "playerSetEnhancement", "mpv-web-glsl-v1")) {
+            if (-not $Text.Contains($Marker)) { throw "Missing enhancement bridge marker: $Marker" }
+          }
+          $Process = Start-Process -FilePath $Exe -ArgumentList "--version" -Wait -PassThru -NoNewWindow
+          if ($Process.ExitCode -ne 0) { throw "Executable smoke test failed: $($Process.ExitCode)" }
+          Write-Host "Verified Windows x64 executable, DLL loading and Web GLSL enhancement bridge"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
